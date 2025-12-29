@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net data:; img-src 'self' data:;">
+  <title>TinkerBest</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.main.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <div class="app-title">
+          <span class="logo">⚡</span>
+          <span>TinkerBest</span>
+        </div>
+      </div>
+      <div class="header-center">
+        <button id="selectProject" class="btn btn-secondary">
+          <span class="btn-icon">📁</span>
+          <span id="projectName">Select Project</span>
+        </button>
+      </div>
+      <div class="header-right">
+        <div id="projectInfo" class="project-info hidden">
+          <span id="laravelBadge" class="badge badge-red hidden">Laravel</span>
+          <span id="phpVersion" class="badge badge-purple hidden">PHP</span>
+          <span id="dockerBadge" class="badge badge-blue hidden">Docker</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Editor Panel -->
+      <div class="panel editor-panel">
+        <div class="panel-header">
+          <span class="panel-title">Code</span>
+          <div class="panel-actions">
+            <div id="dockerControls" class="docker-controls" style="display: none;">
+              <label class="toggle-label" id="dockerToggleContainer">
+                <input type="checkbox" id="useDocker" class="toggle-input">
+                <span class="toggle-switch"></span>
+                <span>Docker</span>
+              </label>
+              <select id="containerSelect" class="container-select" style="display: none;">
+                <option value="">Select container...</option>
+              </select>
+            </div>
+            <button id="runButton" class="btn btn-primary" disabled>
+              <span class="btn-icon">▶</span>
+              Run (⌘+Enter)
+            </button>
+          </div>
+        </div>
+        <div id="editor" class="editor-container"></div>
+      </div>
+
+      <!-- Resizer -->
+      <div class="resizer" id="resizer"></div>
+
+      <!-- Output Panel -->
+      <div class="panel output-panel">
+        <div class="panel-header">
+          <span class="panel-title">Output</span>
+          <div class="panel-actions">
+            <span id="executionTime" class="execution-time hidden"></span>
+            <button id="clearOutput" class="btn btn-ghost">Clear</button>
+          </div>
+        </div>
+        <div id="output" class="output-container">
+          <div class="output-placeholder">
+            <p>Select a Laravel project and run some code!</p>
+            <p class="hint">Use <kbd>⌘</kbd> + <kbd>Enter</kbd> to run</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Status Bar -->
+    <footer class="status-bar">
+      <div class="status-left">
+        <span id="status">Ready</span>
+      </div>
+      <div class="status-right">
+        <span id="projectPath" class="project-path"></span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
