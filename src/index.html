@@ -11,9 +11,9 @@
 <body>
   <div class="app">
     <!-- Header -->
-    <header class="header">
-      <div class="header-left">
-        <div class="app-title">
+    <header class="header" data-tauri-drag-region>
+      <div class="header-left" data-tauri-drag-region>
+        <div class="app-title" data-tauri-drag-region>
           <span class="logo">⚡</span>
           <span>TinkerBest</span>
         </div>
@@ -30,6 +30,7 @@
           <span id="phpVersion" class="badge badge-purple hidden">PHP</span>
           <span id="dockerBadge" class="badge badge-blue hidden">Docker</span>
         </div>
+        <button id="themeToggle" class="theme-toggle" title="Toggle theme">🌙</button>
       </div>
     </header>
 

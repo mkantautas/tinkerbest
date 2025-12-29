@@ -1,3 +1,7 @@
+// Tauri API
+const { invoke } = window.__TAURI__.core;
+const { getCurrentWindow } = window.__TAURI__.window;
+
 // Monaco Editor Setup
 require.config({
   paths: {
@@ -13,12 +17,28 @@ const defaultCode = `$users = User::all();
 dump($users->count());
 `;
 
+// Theme management
+let currentTheme = localStorage.getItem('theme') || 'dark';
+
+function applyTheme(theme) {
+  currentTheme = theme;
+  localStorage.setItem('theme', theme);
+  document.documentElement.setAttribute('data-theme', theme);
+
+  const themeToggle = document.getElementById('themeToggle');
+  if (themeToggle) {
+    themeToggle.textContent = theme === 'dark' ? '🌙' : '☀️';
+  }
+
+  if (editor) {
+    monaco.editor.setTheme(theme === 'dark' ? 'tinkerbestDark' : 'tinkerbestLight');
+  }
+}
+
 // Initialize Monaco Editor
 require(['vs/editor/editor.main'], function () {
-  // Register PHP language configuration
   monaco.languages.register({ id: 'php' });
 
-  // Custom PHP theme
   monaco.editor.defineTheme('tinkerbestDark', {
     base: 'vs-dark',
     inherit: true,
@@ -41,10 +61,32 @@ require(['vs/editor/editor.main'], function () {
     }
   });
 
+  monaco.editor.defineTheme('tinkerbestLight', {
+    base: 'vs',
+    inherit: true,
+    rules: [
+      { token: 'comment', foreground: '008000' },
+      { token: 'keyword', foreground: 'AF00DB' },
+      { token: 'string', foreground: 'A31515' },
+      { token: 'number', foreground: '098658' },
+      { token: 'variable', foreground: '001080' },
+      { token: 'type', foreground: '267f99' },
+    ],
+    colors: {
+      'editor.background': '#ffffff',
+      'editor.foreground': '#1e1e1e',
+      'editorLineNumber.foreground': '#6e6e6e',
+      'editorLineNumber.activeForeground': '#1e1e1e',
+      'editor.selectionBackground': '#add6ff',
+      'editor.lineHighlightBackground': '#f5f5f5',
+      'editorCursor.foreground': '#1e1e1e',
+    }
+  });
+
   editor = monaco.editor.create(document.getElementById('editor'), {
     value: defaultCode,
     language: 'php',
-    theme: 'tinkerbestDark',
+    theme: currentTheme === 'dark' ? 'tinkerbestDark' : 'tinkerbestLight',
     fontSize: 14,
     fontFamily: "'SF Mono', 'Fira Code', 'Monaco', Consolas, monospace",
     lineNumbers: 'on',
@@ -64,12 +106,10 @@ require(['vs/editor/editor.main'], function () {
     }
   });
 
-  // Add keyboard shortcut for running code
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
     runCode();
   });
 
-  // Focus editor on load
   editor.focus();
 });
 
@@ -92,13 +132,29 @@ const dockerBadge = document.getElementById('dockerBadge');
 const statusBar = document.querySelector('.status-bar');
 const resizer = document.getElementById('resizer');
 
+// Theme toggle
+const themeToggle = document.getElementById('themeToggle');
+themeToggle.addEventListener('click', () => {
+  applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+});
+
+// Apply saved theme on load
+applyTheme(currentTheme);
+
+// Window drag functionality for title bar
+document.querySelectorAll('[data-tauri-drag-region]').forEach(el => {
+  el.addEventListener('mousedown', (e) => {
+    if (e.target.closest('button, input, select, a')) return;
+    getCurrentWindow().startDragging();
+  });
+});
+
 // Event Listeners
 selectProjectBtn.addEventListener('click', selectProject);
 runButton.addEventListener('click', runCode);
 clearOutputBtn.addEventListener('click', clearOutput);
 useDockerCheckbox.addEventListener('change', onDockerToggle);
 
-// Handle Docker toggle
 function onDockerToggle() {
   if (useDockerCheckbox.checked) {
     containerSelect.style.display = 'block';
@@ -107,7 +163,6 @@ function onDockerToggle() {
   }
 }
 
-// Populate container select
 function populateContainers(containers) {
   containerSelect.innerHTML = '';
 
@@ -149,7 +204,6 @@ document.addEventListener('mousemove', (e) => {
   const newEditorWidth = e.clientX - containerRect.left;
   const containerWidth = containerRect.width;
 
-  // Ensure minimum widths
   if (newEditorWidth >= 300 && containerWidth - newEditorWidth >= 300) {
     editorPanel.style.flex = 'none';
     editorPanel.style.width = `${newEditorWidth}px`;
@@ -165,21 +219,19 @@ document.addEventListener('mouseup', () => {
 
 // Select Project
 async function selectProject() {
-  const path = await window.api.selectDirectory();
+  const path = await invoke('select_directory');
   if (!path) return;
 
   currentProject = path;
   setStatus('Detecting project...');
 
   try {
-    projectInfo = await window.api.detectProject(path);
+    projectInfo = await invoke('detect_project', { projectPath: path });
 
-    // Update UI
     const projectName = path.split('/').pop();
     projectNameSpan.textContent = projectName;
     projectPathSpan.textContent = path;
 
-    // Show/hide badges
     projectInfoDiv.classList.remove('hidden');
 
     if (projectInfo.isLaravel) {
@@ -198,7 +250,6 @@ async function selectProject() {
       phpVersionBadge.classList.add('hidden');
     }
 
-    // Show Docker controls if available
     if (projectInfo.hasSail || projectInfo.hasDocker) {
       dockerControls.style.display = 'flex';
       populateContainers(projectInfo.runningContainers || []);
@@ -207,7 +258,6 @@ async function selectProject() {
         dockerBadge.classList.remove('hidden');
         dockerBadge.textContent = projectInfo.sailRunning ? 'Sail Running' : 'Docker';
 
-        // Auto-enable Docker if Sail is running
         if (projectInfo.sailRunning) {
           useDockerCheckbox.checked = true;
           onDockerToggle();
@@ -223,10 +273,8 @@ async function selectProject() {
       dockerBadge.classList.add('hidden');
     }
 
-    // Enable run button
     runButton.disabled = false;
 
-    // Update editor with Laravel-specific template
     if (projectInfo.isLaravel && editor) {
       editor.setValue(`$users = User::all();
 dump($users->count() . ' users found');
@@ -264,12 +312,22 @@ async function runCode() {
 
     if (projectInfo && projectInfo.isLaravel) {
       const models = projectInfo.models || [];
-      result = await window.api.executeCode(currentProject, code, useDocker, container, models);
+      result = await invoke('execute_code', {
+        projectPath: currentProject,
+        code: code,
+        useDocker: useDocker,
+        container: container,
+        models: models
+      });
     } else {
-      result = await window.api.executePhp(currentProject, code, useDocker, container);
+      result = await invoke('execute_php', {
+        projectPath: currentProject,
+        code: code,
+        useDocker: useDocker,
+        container: container
+      });
     }
 
-    // Show execution time
     executionTimeSpan.textContent = `${result.executionTime}ms`;
     executionTimeSpan.classList.remove('hidden');
 
@@ -283,14 +341,13 @@ async function runCode() {
     }
 
   } catch (error) {
-    setOutput(`Execution failed: ${error.message}`, 'error');
+    setOutput(`Execution failed: ${error.message || error}`, 'error');
     setStatus('Error', 'error');
   } finally {
     runButton.disabled = false;
   }
 }
 
-// Clear Output
 function clearOutput() {
   outputDiv.innerHTML = `<div class="output-placeholder">
     <p>Output cleared</p>
@@ -299,7 +356,6 @@ function clearOutput() {
   executionTimeSpan.classList.add('hidden');
 }
 
-// Set Output
 function setOutput(content, type = 'success') {
   outputDiv.innerHTML = '';
   const pre = document.createElement('pre');
@@ -308,7 +364,6 @@ function setOutput(content, type = 'success') {
   outputDiv.appendChild(pre);
 }
 
-// Set Status
 function setStatus(message, type = 'default') {
   statusSpan.textContent = message;
   statusBar.className = 'status-bar';
@@ -318,7 +373,6 @@ function setStatus(message, type = 'default') {
     statusBar.classList.add('success');
   }
 
-  // Reset status bar color after 3 seconds
   if (type !== 'default') {
     setTimeout(() => {
       statusBar.className = 'status-bar';
@@ -326,7 +380,6 @@ function setStatus(message, type = 'default') {
   }
 }
 
-// Handle window resize
 window.addEventListener('resize', () => {
   if (editor) {
     editor.layout();
